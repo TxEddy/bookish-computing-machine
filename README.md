@@ -1,1 +1,2 @@
 # bookish-computing-machine
+Repo containing the [beginners guide](https://chrthomsen.github.io/pygrametl/doc/quickstart/beginner.html) of Pygrametl and their related files. The repo also contains a script that uses parts of the beginners guide to make a connection to BigQuery.
