@@ -1,4 +1,3 @@
-import os
 import tomllib
 
 from google.cloud import bigquery
@@ -78,14 +77,73 @@ def create_tables(client, toml_config):
     dim_book = create_bq_table(
         f"{toml_config['project_id']}.pygrametl.book", book_schema
     )
+
     dim_time = create_bq_table(
         f"{toml_config['project_id']}.pygrametl.time", time_schema
     )
+
     dim_location = create_bq_table(
         f"{toml_config['project_id']}.pygrametl.location", location_schema
     )
+
     fact_table = create_bq_table(
         f"{toml_config['project_id']}.pygrametl.facttable", facttable_schema
+    )
+
+    client.create_table(dim_book)
+    client.create_table(dim_time)
+    client.create_table(dim_location)
+    client.create_table(fact_table)
+
+
+def create_tables_hash(client, toml_config):
+    book_schema = [
+        bigquery.SchemaField("bookid", "integer", mode="required"),
+        bigquery.SchemaField("title", "string", mode="nullable"),
+        bigquery.SchemaField("genre", "string", mode="nullable"),
+        bigquery.SchemaField(
+            "book_hash_id",
+            "string",
+            mode="required",
+            # default_value_expression="GENERATE_UUID()",
+        ),
+    ]
+
+    time_schema = [
+        bigquery.SchemaField("timeid", "integer", mode="required"),
+        bigquery.SchemaField("day", "integer", mode="nullable"),
+        bigquery.SchemaField("month", "integer", mode="nullable"),
+        bigquery.SchemaField("year", "integer", mode="nullable"),
+        bigquery.SchemaField("time_hash_id", "string", mode="required"),
+    ]
+
+    location_schema = [
+        bigquery.SchemaField("locationid", "integer", mode="required"),
+        bigquery.SchemaField("city", "string", mode="nullable"),
+        bigquery.SchemaField("region", "string", mode="nullable"),
+    ]
+
+    facttable_schema = [
+        bigquery.SchemaField("book_hash_id", "string", mode="required"),
+        bigquery.SchemaField("locationid", "integer", mode="required"),
+        bigquery.SchemaField("time_hash_id", "string", mode="required"),
+        bigquery.SchemaField("sale", "integer", mode="required"),
+    ]
+
+    dim_book = create_bq_table(
+        f"{toml_config['project_id']}.pygrametl_hash.book", book_schema
+    )
+
+    dim_time = create_bq_table(
+        f"{toml_config['project_id']}.pygrametl_hash.time", time_schema
+    )
+
+    dim_location = create_bq_table(
+        f"{toml_config['project_id']}.pygrametl_hash.location", location_schema
+    )
+
+    fact_table = create_bq_table(
+        f"{toml_config['project_id']}.pygrametl_hash.facttable", facttable_schema
     )
 
     client.create_table(dim_book)

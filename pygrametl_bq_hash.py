@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 
@@ -28,6 +29,20 @@ def bq_connector(bigquery_client):
     return bq_connection
 
 
+def hash_book(row):
+    concat = row["title"] + row["genre"]
+    hash = hashlib.sha256(concat.encode()).hexdigest()
+
+    return hash
+
+
+def hash_date(row):
+    str_date = str(row["date"])
+    hash = hashlib.sha256(str_date.encode()).hexdigest()
+
+    return hash
+
+
 def pygrametl_tut(gcp_configuration, bigquery_connection):
     toml_config = get_toml_file(f"{os.getcwd()}/config/")
     ext_db_info = toml_config["postgresql"]["eddylim"]
@@ -44,32 +59,31 @@ def pygrametl_tut(gcp_configuration, bigquery_connection):
 
     # Defining the Dimension and Fact tables.
     dim_book = CachedDimension(
-        name="pygrametl.book",
+        name="pygrametl_hash.book",
         key="bookid",
         # attributes=["book", "genre"],
-        attributes=["title", "genre"],
+        attributes=["title", "genre", "book_hash_id"],
     )
 
     dim_time = CachedDimension(
-        name="pygrametl.time",
+        name="pygrametl_hash.time",
         key="timeid",
-        attributes=["day", "month", "year"],
+        attributes=["day", "month", "year", "time_hash_id"],
     )
 
     dim_location = CachedDimension(
-        name="pygrametl.location",
+        name="pygrametl_hash.location",
         key="locationid",
         attributes=["city", "region"],
         lookupatts=["city"],
     )
 
     fact_table = FactTable(
-        name="pygrametl.facttable",
-        keyrefs=["bookid", "locationid", "timeid"],
+        name="pygrametl_hash.facttable",
+        keyrefs=["book_hash_id", "locationid", "time_hash_id"],
         measures=["sale"],
     )
 
-    # print("Inserting values into 'dim_location' table...")
     logging.info("Inserting values into 'dim_location' table...")
 
     # Fill the Dimension Location with all the lines from 'region.csv' file.
@@ -82,7 +96,6 @@ def pygrametl_tut(gcp_configuration, bigquery_connection):
 
     logging.info("Inserted all values into 'dim_location' table.")
 
-    # result_columns = "book", "genre", "city", "date", "sale"
     result_columns = "title", "genre", "city", "date", "sale"
 
     # query = "select book, genre, store, date, sale from sale"
@@ -97,6 +110,10 @@ def pygrametl_tut(gcp_configuration, bigquery_connection):
     )
     for row in external_source:
         split_date(row)
+
+        # Setting a new hash for the hashed column ids.
+        row["book_hash_id"] = hash_book(row)
+        row["time_hash_id"] = hash_date(row)
 
         # Lookup the given row. If that fails, insert it.
         # If found, see if values for attributes in otherrefs or
@@ -145,7 +162,7 @@ def main():
     bq_conn = bq_connector(bq_client)
 
     # Creating the tables in BigQuery.
-    create_tables(bq_client, gcp_config)
+    create_tables_hash(bq_client, gcp_config)
     logging.info("Created the BigQuery Tables.")
 
     # Running the Pygrametl beginner's guide using BigQuery.
@@ -154,3 +171,5 @@ def main():
 
 
 main()
+
+# For future implementation, try to use an unique identifier, because now if you rerun the script the same id's get inserted
